@@ -1,0 +1,23 @@
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Environment Variables
+.env
+
+# Project Specific
+workspace/
+Captured_Media/
+*.log
+
+# PyInstaller (if we build an exe later)
+build/
+dist/
+*.spec
