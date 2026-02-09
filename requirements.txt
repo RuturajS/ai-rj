@@ -6,3 +6,8 @@ pyaudio
 psutil
 opencv-python
 pyautogui
+python-dotenv
+google-generativeai
+anthropic
+discord.py
+python-telegram-bot

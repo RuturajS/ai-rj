@@ -1,21 +1,39 @@
 
 import os
 import sys
-import time
-import json
 import threading
 import speech_recognition as sr
 import pyttsx3
-from config import WAKE_WORD
+import config
+from config import WAKE_WORD, MICROPHONE_INDEX, REMOTE_CONFIG
 from command_registry import registry
 from llm_engine import LLMEngine
-
-# Import skills to register commands
 import skills.browser
 import skills.system
 import skills.files
 import skills.media
 import skills.input
+
+import logging
+import skills.notes # Ensure notes skill is registered
+
+# Setup Logging
+if not os.path.exists("logs"):
+    os.makedirs("logs")
+
+logging.basicConfig(
+    filename="logs/debug.log",
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+# Remote Integrations
+try:
+    from integrations.discord_bot import run_discord
+    from integrations.telegram_bot import run_telegram
+except ImportError:
+    pass
 
 class AI_Assistant:
     def __init__(self):
@@ -32,9 +50,11 @@ class AI_Assistant:
         self.recognizer = sr.Recognizer()
         self.mic = None
         try:
-            self.mic = sr.Microphone()
-        except Exception:
-            print("Microphone not found. Switching to text mode.")
+            # Use specific microphone index if configured:
+            mic_index = getattr(config, 'MICROPHONE_INDEX', None) 
+            self.mic = sr.Microphone(device_index=mic_index)
+        except Exception as e:
+            print(f"Microphone init failed: {e}. Switching to text mode.")
 
         self.llm = LLMEngine()
         self.running = True
@@ -54,14 +74,18 @@ class AI_Assistant:
         
         with self.mic as source:
             print(f"\nListening (Say '{WAKE_WORD}'...)...")
-            self.recognizer.adjust_for_ambient_noise(source)
+            self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+            self.recognizer.pause_threshold = 1.0  # Wait 1s of silence before ending
+            self.recognizer.energy_threshold = 300  # Lower sensitivity (default ~300-400)
+            
             try:
-                audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=5)
+                audio = self.recognizer.listen(source, timeout=None, phrase_time_limit=10)
                 try:
                     text = self.recognizer.recognize_google(audio)
-                    print(f"Heard: {text}")
+                    print(f"Heard: '{text}'") # Debug print
                     return text.lower()
                 except sr.UnknownValueError:
+                    # print("...") # Ignore unrecognizable sounds
                     return None
             except sr.WaitTimeoutError:
                 return None
@@ -77,10 +101,17 @@ class AI_Assistant:
         
         # Voice Mode: REQUIRE wake word
         if self.mic:
-            if WAKE_WORD in text:
-                cleaned_text = text.split(WAKE_WORD, 1)[1].strip()
-            else:
-                # Ignore input without wake word
+            # Common mishearings for "RJ"
+            wake_word_variants = [WAKE_WORD.lower(), "are jay", "r j", "rg", "archie", "rj"]
+            
+            triggered = False
+            for trigger in wake_word_variants:
+                if trigger in text:
+                    cleaned_text = text.split(trigger, 1)[1].strip()
+                    triggered = True
+                    break
+            
+            if not triggered:
                 return
 
         # Text Mode: Optional wake word
@@ -129,6 +160,47 @@ class AI_Assistant:
             self.running = False
             print("\nStopping...")
 
+def select_provider():
+    """Forces user to select an AI provider at startup."""
+    print("\n" + "="*30)
+    print("   AI PROVIDER SELECTION")
+    print("="*30)
+    print("[1] OpenAI")
+    print("[2] Gemini")
+    print("[3] Anthropic")
+    print("[4] Groq")
+    print("[5] OpenRouter")
+    print("[6] Local (Ollama)")
+    print("[Enter] Auto-Detect (Default)")
+    
+    choice = input("\nSelect Provider (1-6): ").strip()
+    
+    mapping = {
+        "1": "openai",
+        "2": "gemini",
+        "3": "anthropic",
+        "4": "groq",
+        "5": "openrouter",
+        "6": "local"
+    }
+    
+    provider = mapping.get(choice, "auto")
+    
+    # Override config in memory
+    config.LLM_PROVIDER = provider
+    print(f"Selected: {provider.upper()}\n")
+
 if __name__ == "__main__":
+    select_provider()
+
+    # Start Remote Listeners in Background Threads
+    if REMOTE_CONFIG.get("discord_token"):
+        threading.Thread(target=run_discord, daemon=True).start()
+        
+    if REMOTE_CONFIG.get("telegram_token"):
+        # Telegram usually needs to run in main thread or asyncio loop, 
+        # but for simple polling, threading often works.
+        threading.Thread(target=run_telegram, daemon=True).start()
+
     assistant = AI_Assistant()
     assistant.run()
