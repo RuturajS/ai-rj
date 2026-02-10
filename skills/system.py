@@ -28,3 +28,8 @@ def shutdown_system(delay: int = 60):
     else:
         os.system(f"shutdown -h +{delay//60}")
     return f"Shutdown scheduled in {delay} seconds."
+
+@registry.register(name="chat", description="Replies to the user with a spoken message.", safe=True)
+def chat(text: str):
+    """Returns the text for the assistant to speak."""
+    return text

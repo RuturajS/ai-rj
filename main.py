@@ -99,20 +99,36 @@ class AI_Assistant:
         
         cleaned_text = text
         
-        # Voice Mode: REQUIRE wake word
+        # Voice Mode: REQUIRE wake word (or conversational trigger)
         if self.mic:
-            # Common mishearings for "RJ"
-            wake_word_variants = [WAKE_WORD.lower(), "are jay", "r j", "rg", "archie", "rj"]
+            # Expanded triggers so you don't ALWAYS have to say strict "RJ"
+            wake_word_variants = [
+                WAKE_WORD.lower(), "rj", "r j", "are jay", "archie", "rg", # Name variants
+                "hey", "hi", "hello", "okay", "ok", # Greetings
+                "can you", "could you", "please", "tell me" # Politeness
+            ]
             
             triggered = False
             for trigger in wake_word_variants:
-                if trigger in text:
-                    cleaned_text = text.split(trigger, 1)[1].strip()
+                if text.startswith(trigger): # Check if sentence STARTS with these
+                    # Remove the trigger but keep the rest
+                    # e.g. "Can you open browser" -> "open browser"
+                    if trigger in text: 
+                         cleaned_text = text.replace(trigger, "", 1).strip()
                     triggered = True
                     break
             
-            if not triggered:
+            # If strictly configured to ONLY use RJ, you can remove the list above.
+            # But for natural conversation, this check is better:
+            if not triggered and WAKE_WORD.lower() not in text:
+                print(f"Ignored (No wake word): '{text}'")
                 return
+            
+            # If wake word was in the middle of sentence (e.g. "Open google RJ")
+            if not triggered and WAKE_WORD.lower() in text:
+                 cleaned_text = text.replace(WAKE_WORD.lower(), "").strip()
+
+        # Text Mode: Optional wake word
 
         # Text Mode: Optional wake word
         else:
@@ -136,12 +152,17 @@ class AI_Assistant:
             return
 
         # 4. Execute via Registry
-        self.speak(f"Executing {cmd_name}...")
+        # self.speak(f"Executing {cmd_name}...") # Too robotic
+        
         result = registry.execute(cmd_name, **args)
         
         # 5. Report Result
-        # print(f"Result: {result}")
-        self.speak(str(result))
+        # Only print debug result, speak the actual content
+        print(f"Action Output: {result}")
+        if cmd_name == "chat":
+             self.speak(result)
+        else:
+             self.speak(f"{result}")
 
     def run(self):
         self.speak("System online.")

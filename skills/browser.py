@@ -10,7 +10,7 @@ def open_browser(url: str):
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
     webbrowser.open(url)
-    return f"Opened {url}"
+    return f"Opening {url} for you, sir."
 
 @registry.register(name="close_browser", description="Closes the current browser window.", safe=False)
 def close_browser():

@@ -35,6 +35,7 @@ REMOTE_CONFIG = {
 
 # --- Base URLs ---
 LOCAL_LLM_URL = os.getenv("LOCAL_LLM_URL", "http://localhost:11434/v1")
+LOCAL_MODEL_NAME = os.getenv("LOCAL_MODEL_NAME", "local-model")
 
 # --- Constraints ---
 ALLOWED_PATHS = [

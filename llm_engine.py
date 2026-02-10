@@ -66,7 +66,7 @@ class LLMEngine:
                 base_url=config.LOCAL_LLM_URL,
                 api_key="lm-studio" # Dummy key
             )
-            self.model = "local-model"
+            self.model = config.LOCAL_MODEL_NAME
 
         print(f"LLM Engine Initialized: Provider={self.provider}, Model={self.model}")
 
@@ -79,11 +79,20 @@ class LLMEngine:
              return self._fallback_parser(user_input)
 
         system_prompt = f"""
-        You are an AI Assistant. Map user intent to:
-        {registry.list_commands()}
+        You are RJ, a helpful AI Desktop Assistant (modeled after JARVIS).
+        Your goal is to assist the user by executing commands or chatting helpfully.
         
-        Strict JSON Output: {{ "command": "cmd_name", "args": {{ "key": "value" }} }}
-        If unclear/unsafe, use "unknown".
+        AVAILABLE COMMANDS:
+        {registry.list_commands()}
+        - chat: Use this for general conversation, questions, or confirming actions (e.g., "Opening browser now, sir").
+        
+        RULES:
+        1. If the user asks to DO something supported by commands, output JSON: {{ "command": "cmd_name", "args": {{ ... }} }}
+        2. If the user wants to CHAT or asks a question (GK, jokes, etc), output: {{ "command": "chat", "args": {{ "text": "Your helpful response here" }} }}
+        3. Be concise, professional, and polite. Address the user as "Sir" occasionally.
+        4. If a command is risky (like shutdown), confirm it first by chatting.
+        
+        Strict JSON Output Only. No markdown.
         """
 
         try:
@@ -144,6 +153,9 @@ class LLMEngine:
         if "close browser" in text or "close window" in text:
             return {"command": "close_browser", "args": {}}
 
+        # Clean filler words
+        text = text.replace("my ", "").replace("the ", "").replace("please ", "").strip()
+
         # Generic "Open X" logic
         if "open" in text:
              target = text.split("open", 1)[1].strip()
@@ -165,7 +177,16 @@ class LLMEngine:
         if "read notes" in text or "last note" in text:
             return {"command": "read_notes", "args": {}}
 
-        # --- SYSTEM ---
+        # --- CHAT / SYSTEM ---
+        if "hello" in text or "hi" in text:
+             return {"command": "chat", "args": {"text": "Hello, sir. Ready for commands."}}
+             
+        if "who are you" in text:
+             return {"command": "chat", "args": {"text": "I am RJ, your personal AI assistant."}}
+             
+        if "thank" in text:
+             return {"command": "chat", "args": {"text": "You are welcome, sir."}}
+
         if "time" in text or "date" in text:
             return {"command": "get_time", "args": {}}
         
