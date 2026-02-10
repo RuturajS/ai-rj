@@ -13,6 +13,7 @@ except ValueError:
     MICROPHONE_INDEX = 1
 
 VOICE_OUTPUT = os.getenv("VOICE_OUTPUT", "true").lower() == "true"
+ALWAYS_ASK_PERMISSION = os.getenv("ALWAYS_ASK_PERMISSION", "false").lower() == "true"
 
 # --- Provider Config ---
 # 'auto', 'openai', 'gemini', 'anthropic', 'groq', 'ollama'

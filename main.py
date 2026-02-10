@@ -16,6 +16,7 @@ import skills.input
 
 import logging
 import skills.notes # Ensure notes skill is registered
+import skills.workflows
 
 # Setup Logging
 if not os.path.exists("logs"):
@@ -79,11 +80,11 @@ class AI_Assistant:
         with self.mic as source:
             print(f"\nListening (Say '{WAKE_WORD}'...)...")
             self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            self.recognizer.pause_threshold = 1.0  # Wait 1s of silence before ending
-            self.recognizer.energy_threshold = 300  # Lower sensitivity (default ~300-400)
+            self.recognizer.pause_threshold = 1.2  # Wait slightly longer for complex commands
+            self.recognizer.energy_threshold = 350
             
             try:
-                audio = self.recognizer.listen(source, timeout=None, phrase_time_limit=10)
+                audio = self.recognizer.listen(source, timeout=None, phrase_time_limit=15)
                 try:
                     text = self.recognizer.recognize_google(audio)
                     print(f"Heard: '{text}'") # Debug print
@@ -163,7 +164,34 @@ class AI_Assistant:
 
         # 4. Execute via Registry if it's not JUST a chat
         if cmd_name != "chat":
+            # Global Permission Check
+            if config.ALWAYS_ASK_PERMISSION:
+                self.speak(f"Sir, I'm about to {cmd_name.replace('_', ' ')}. Is that permitted?")
+                confirm = input(f"Allow {cmd_name}? (y/n): ").lower()
+                if confirm != 'y':
+                    self.speak("Cancelled, Sir.")
+                    return
+
             result = registry.execute(cmd_name, **args)
+            
+            # Special Handling for Workflows
+            if isinstance(result, dict) and result.get("is_workflow"):
+                steps = result.get("steps", [])
+                self.speak(f"Sir, I have retrieved the procedure. It involves {len(steps)} steps. Shall I proceed?")
+                confirm = input("Proceed with workflow? (y/n): ").lower()
+                if confirm == 'y':
+                    self.speak("Executing procedure now.")
+                    for i, step in enumerate(steps):
+                        s_cmd = step.get("command")
+                        s_args = step.get("args", {})
+                        self.speak(f"Step {i+1}: {s_cmd.replace('_', ' ')}")
+                        s_res = registry.execute(s_cmd, **s_args)
+                        print(f"Step {i+1} Output: {s_res}")
+                    self.speak("Procedure complete, Sir.")
+                else:
+                    self.speak("Workflow cancelled.")
+                return
+
             print(f"Action Output: {result}")
             
             # If the command returned something important (like time or diagnostics), 

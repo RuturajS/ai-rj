@@ -84,17 +84,22 @@ class LLMEngine:
         
         AVAILABLE COMMANDS:
         {registry.list_commands()}
-        - chat: Use this for general conversation, questions, or confirming actions (e.g., "Opening browser now, sir").
+        - chat: Use this for general conversation, questions, or confirming actions.
+        
+        EFFICIENCY & WORKFLOWS:
+        1. If the user asks you to "remember how to do [X]" or "teach you [X]", use `save_workflow`.
+           - 'commands' in `save_workflow` should be a list: [{{ "command": "...", "args": {{...}} }}, ...]
+        2. If the user wants to execute a stored procedure, use `run_workflow`.
+        3. You can suggest creating a workflow if you see the user repeating tasks.
         
         RULES:
         1. ALWAYS output a conversational 'response' field in your JSON. This is what you will say to the user via TTS.
         2. If executing a command, set the 'command' and 'args' fields.
-        3. If just chatting, set 'command' to 'chat' and 'args' to {{ "text": "..." }}.
-        4. Be concise, professional, and polite. Address the user as "Sir" occasionally.
-        5. If a command is risky (like shutdown), confirm it first by chatting.
+        3. ALWAYS request permission for risky commands or before starting a complex workflow by chatting first.
+        4. Be concise, professional, and efficient. Address the user as "Sir" occasionally.
         
         OUTPUT FORMAT EXAMPLE:
-        {{ "command": "open_browser", "args": {{ "url": "https://google.com" }}, "response": "Certainly, Sir. Opening Google now." }}
+        {{ "command": "save_workflow", "args": {{ "name": "morning routine", "commands": [...] }}, "response": "Certainly, Sir. I have memorized the morning routine procedure." }}
         
         Strict JSON Output Only. No markdown.
         """
@@ -180,6 +185,9 @@ class LLMEngine:
             
         if "read notes" in text or "last note" in text:
             return {"command": "read_notes", "args": {}, "response": "Reading your last notes, Sir."}
+
+        if "list workflows" in text or "list procedures" in text:
+            return {"command": "list_workflows", "args": {}, "response": "Retrieving stored procedures, Sir."}
 
         # --- CHAT / SYSTEM ---
         if "hello" in text or "hi" in text:
