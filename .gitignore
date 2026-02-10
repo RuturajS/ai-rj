@@ -14,6 +14,7 @@ venv/
 
 # Project Specific
 workspace/
+workflows/*.json
 Captured_Media/
 *.log
 
