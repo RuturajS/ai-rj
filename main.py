@@ -192,6 +192,23 @@ class AI_Assistant:
                     self.speak("Workflow cancelled.")
                 return
 
+            # Special Handling for Information Retrieval
+            if isinstance(result, dict) and result.get("is_info_retrieval"):
+                link = result.get("first_link")
+                query = result.get("query")
+                context = ""
+                if link:
+                    self.speak(f"Fetching details from the web, Sir.")
+                    context = registry.execute("get_page_text", url=link)
+                else:
+                    context = "No direct links found, but you can try to answer from your training data if you are sure."
+                
+                new_intent = self.llm.parse_intent(f"Based on this info, answer: {query}", context=context)
+                new_response = new_intent.get("response")
+                if new_response:
+                    self.speak(new_response)
+                return
+
             print(f"Action Output: {result}")
             
             # If the command returned something important (like time or diagnostics), 

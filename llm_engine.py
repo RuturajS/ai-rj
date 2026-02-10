@@ -70,13 +70,15 @@ class LLMEngine:
 
         print(f"LLM Engine Initialized: Provider={self.provider}, Model={self.model}")
 
-    def parse_intent(self, user_input: str):
+    def parse_intent(self, user_input: str, context: str = ""):
         """
         Analyzes user input and returns a structured command JSON.
         """
         # If no client initialized (e.g. no keys and local server down), use fallback
         if not self.client and self.provider != "gemini":
              return self._fallback_parser(user_input)
+
+        context_info = f"\nADDITIONAL CONTEXT (Retrieved Info):\n{context}\n" if context else ""
 
         system_prompt = f"""
         You are RJ, a helpful AI Desktop Assistant (modeled after JARVIS).
@@ -92,6 +94,12 @@ class LLMEngine:
         2. If the user wants to execute a stored procedure, use `run_workflow`.
         3. You can suggest creating a workflow if you see the user repeating tasks.
         
+        INFORMATION RETRIEVAL:
+        - If the user asks a factual question (e.g., "What is the weather in Delhi?"), use `search_and_summarize`.
+        - If the user provides a URL and asks about it, use `get_page_text`.
+        - If you have context provided below, use it to answer the user's question in the 'response' field.
+        {context_info}
+        
         RULES:
         1. ALWAYS output a conversational 'response' field in your JSON. This is what you will say to the user via TTS.
         2. If executing a command, set the 'command' and 'args' fields.
@@ -99,7 +107,7 @@ class LLMEngine:
         4. Be concise, professional, and efficient. Address the user as "Sir" occasionally.
         
         OUTPUT FORMAT EXAMPLE:
-        {{ "command": "save_workflow", "args": {{ "name": "morning routine", "commands": [...] }}, "response": "Certainly, Sir. I have memorized the morning routine procedure." }}
+        {{ "command": "search_and_summarize", "args": {{ "query": "current time in London" }}, "response": "Checking the time in London for you, Sir." }}
         
         Strict JSON Output Only. No markdown.
         """
