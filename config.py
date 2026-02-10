@@ -12,6 +12,8 @@ try:
 except ValueError:
     MICROPHONE_INDEX = 1
 
+VOICE_OUTPUT = os.getenv("VOICE_OUTPUT", "true").lower() == "true"
+
 # --- Provider Config ---
 # 'auto', 'openai', 'gemini', 'anthropic', 'groq', 'ollama'
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "auto").lower()

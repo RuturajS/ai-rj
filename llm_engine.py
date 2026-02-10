@@ -87,10 +87,14 @@ class LLMEngine:
         - chat: Use this for general conversation, questions, or confirming actions (e.g., "Opening browser now, sir").
         
         RULES:
-        1. If the user asks to DO something supported by commands, output JSON: {{ "command": "cmd_name", "args": {{ ... }} }}
-        2. If the user wants to CHAT or asks a question (GK, jokes, etc), output: {{ "command": "chat", "args": {{ "text": "Your helpful response here" }} }}
-        3. Be concise, professional, and polite. Address the user as "Sir" occasionally.
-        4. If a command is risky (like shutdown), confirm it first by chatting.
+        1. ALWAYS output a conversational 'response' field in your JSON. This is what you will say to the user via TTS.
+        2. If executing a command, set the 'command' and 'args' fields.
+        3. If just chatting, set 'command' to 'chat' and 'args' to {{ "text": "..." }}.
+        4. Be concise, professional, and polite. Address the user as "Sir" occasionally.
+        5. If a command is risky (like shutdown), confirm it first by chatting.
+        
+        OUTPUT FORMAT EXAMPLE:
+        {{ "command": "open_browser", "args": {{ "url": "https://google.com" }}, "response": "Certainly, Sir. Opening Google now." }}
         
         Strict JSON Output Only. No markdown.
         """
@@ -142,16 +146,16 @@ class LLMEngine:
         # --- BROWSER ---
         if "google" in text or "search" in text:
             query = text.replace("google", "").replace("search", "").strip()
-            return {"command": "google_search", "args": {"query": query}}
+            return {"command": "google_search", "args": {"query": query}, "response": f"Searching Google for {query}, Sir."}
         
         if "open youtube" in text:
-             return {"command": "open_browser", "args": {"url": "https://youtube.com"}}
+             return {"command": "open_browser", "args": {"url": "https://youtube.com"}, "response": "Of course, Sir. Opening YouTube."}
 
         if "close tab" in text or "close this tab" in text:
-            return {"command": "close_tab", "args": {}}
+            return {"command": "close_tab", "args": {}, "response": "Closing the tab, Sir."}
         
         if "close browser" in text or "close window" in text:
-            return {"command": "close_browser", "args": {}}
+            return {"command": "close_browser", "args": {}, "response": "Closing the browser window, Sir."}
 
         # Clean filler words
         text = text.replace("my ", "").replace("the ", "").replace("please ", "").strip()
@@ -167,30 +171,30 @@ class LLMEngine:
                  # Try to guess URL if not explicit
                  url = f"https://{target.replace(' ', '')}.com"
              
-             return {"command": "open_browser", "args": {"url": url}}
+             return {"command": "open_browser", "args": {"url": url}, "response": f"Opening {target} for you, Sir."}
 
         # --- NOTES ---
         if "take note" in text or "write note" in text or "save this" in text:
             content = text.replace("take note", "").replace("write note", "").replace("save this", "").strip()
-            return {"command": "take_note", "args": {"content": content}}
+            return {"command": "take_note", "args": {"content": content}, "response": "Note saved, Sir."}
             
         if "read notes" in text or "last note" in text:
-            return {"command": "read_notes", "args": {}}
+            return {"command": "read_notes", "args": {}, "response": "Reading your last notes, Sir."}
 
         # --- CHAT / SYSTEM ---
         if "hello" in text or "hi" in text:
-             return {"command": "chat", "args": {"text": "Hello, sir. Ready for commands."}}
+             return {"command": "chat", "args": {"text": "Hello, sir. Ready for commands."}, "response": "Hello, sir. I am online and ready to assist."}
              
         if "who are you" in text:
-             return {"command": "chat", "args": {"text": "I am RJ, your personal AI assistant."}}
+             return {"command": "chat", "args": {"text": "I am RJ, your personal AI assistant."}, "response": "I am RJ, your personal AI assistant. How may I help you today?"}
              
         if "thank" in text:
-             return {"command": "chat", "args": {"text": "You are welcome, sir."}}
+             return {"command": "chat", "args": {"text": "You are welcome, sir."}, "response": "You are most welcome, Sir."}
 
         if "time" in text or "date" in text:
-            return {"command": "get_time", "args": {}}
+            return {"command": "get_time", "args": {}, "response": "Checking the system time for you, Sir."}
         
         if "system" in text or "cpu" in text or "ram" in text:
-            return {"command": "system_info", "args": {}}
+            return {"command": "system_info", "args": {}, "response": "Retrieving system diagnostics, Sir."}
             
         return {"command": "unknown", "args": {}}

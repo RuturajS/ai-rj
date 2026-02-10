@@ -37,15 +37,19 @@ except ImportError:
 
 class AI_Assistant:
     def __init__(self):
-        try:
-            self.engine = pyttsx3.init()
-            # Set voice
-            voices = self.engine.getProperty('voices')
-            if voices:
-                self.engine.setProperty('voice', voices[0].id) 
-        except Exception:
+        if config.VOICE_OUTPUT:
+            try:
+                self.engine = pyttsx3.init()
+                # Set voice
+                voices = self.engine.getProperty('voices')
+                if voices:
+                    self.engine.setProperty('voice', voices[0].id) 
+            except Exception:
+                self.engine = None
+                print("TTS Engine failed to initialize. Output will be text-only.")
+        else:
             self.engine = None
-            print("TTS Engine failed to initialize. Output will be text-only.")
+            print("Voice Output is disabled in config.")
 
         self.recognizer = sr.Recognizer()
         self.mic = None
@@ -61,7 +65,7 @@ class AI_Assistant:
 
     def speak(self, text):
         print(f"AI: {text}")
-        if self.engine:
+        if config.VOICE_OUTPUT and self.engine:
             try:
                 self.engine.say(text)
                 self.engine.runAndWait()
@@ -142,27 +146,34 @@ class AI_Assistant:
         # 1. Analyze intent (LLM or Regex Fallback)
         intent = self.llm.parse_intent(cleaned_text)
         
-        # 2. Extract Action
+        # 2. Extract Response and Action
+        verbal_response = intent.get("response")
         cmd_name = intent.get("command")
         args = intent.get("args", {})
 
+        # Speak LLM's personality response first
+        if verbal_response:
+             self.speak(verbal_response)
+
         # 3. Handle Unknowns
         if not cmd_name or cmd_name == "unknown":
-            self.speak("I'm not sure how to do that.")
+            if not verbal_response:
+                self.speak("I'm not sure how to do that.")
             return
 
-        # 4. Execute via Registry
-        # self.speak(f"Executing {cmd_name}...") # Too robotic
-        
-        result = registry.execute(cmd_name, **args)
-        
-        # 5. Report Result
-        # Only print debug result, speak the actual content
-        print(f"Action Output: {result}")
-        if cmd_name == "chat":
-             self.speak(result)
-        else:
-             self.speak(f"{result}")
+        # 4. Execute via Registry if it's not JUST a chat
+        if cmd_name != "chat":
+            result = registry.execute(cmd_name, **args)
+            print(f"Action Output: {result}")
+            
+            # If the command returned something important (like time or diagnostics), 
+            # and it wasn't already in the verbal response, speak it.
+            if result and str(result) not in str(verbal_response):
+                 self.speak(f"{result}")
+        elif not verbal_response:
+            # Fallback for chat if no 'response' field was provided
+            result = registry.execute(cmd_name, **args)
+            self.speak(result)
 
     def run(self):
         self.speak("System online.")
